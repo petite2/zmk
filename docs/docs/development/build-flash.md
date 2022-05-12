@@ -26,7 +26,7 @@ From here on, building and flashing ZMK should all be done from the `app/` subdi
 cd app
 ```
 
-To build for your particular keyboard, the behaviour varies slightly depending on if you are building for a keyboard with
+To build for your particular keyboard, the behavior varies slightly depending on if you are building for a keyboard with
 an onboard MCU, or one that uses an MCU board addon.
 
 ### Keyboard (Shield) + MCU Board
@@ -90,7 +90,7 @@ This produces `left` and `right` subfolders under the `build` directory and two 
 
 ### Building from `zmk-config` Folder
 
-Instead of building .uf2 files using the default keymap and config files, you can build directly from your [`zmk-config` folder](../user-setup#github-repo) by adding
+Instead of building .uf2 files using the default keymap and config files, you can build directly from your [`zmk-config` folder](../user-setup.md#github-repo) by adding
 `-DZMK_CONFIG="C:/the/absolute/path/config"` to your `west build` command. **Notice that this path should point to the folder labelled `config` within your `zmk-config` folder.**
 
 For instance, building kyria firmware from a user `myUser`'s `zmk-config` folder on Windows 10 may look something like this:
@@ -98,6 +98,10 @@ For instance, building kyria firmware from a user `myUser`'s `zmk-config` folder
 ```
 west build -b nice_nano -- -DSHIELD=kyria_left -DZMK_CONFIG="C:/Users/myUser/Documents/Github/zmk-config/config"
 ```
+
+:::caution
+The above command must still be invoked from the `zmk/app` directory as noted above, rather than the config directory. Otherwise, you will encounter errors such as `ERROR: source directory "." does not contain a CMakeLists.txt; is this really what you want to build?`. Alternatively you can add the `-s /path/to/zmk/app` flag to your `west` command.
+:::
 
 In order to make your `zmk-config` folder available when building within the VSCode Remote Container, you need to create a docker volume named `zmk-config`
 by binding it to the full path of your config directory. If you have run the VSCode Remote Container before, it is likely that docker has created this
@@ -107,7 +111,7 @@ volume automatically -- we need to delete the default volume before binding it t
 1. Remove all the containers that are not running via the command `docker container prune`. We need to remove the ZMK container before we can delete the default `zmk-config` volume referenced by it. If you do not want to delete all the containers that are not running, you can find the id of the ZMK container and use `docker rm` to delete that one only.
 1. Remove the default volume via the command `docker volume rm zmk-config`.
 
-Then you can bind the `zmk-config` volume to the correct path pointing to your local [zmk-config](./customization.md) folder:
+Then you can bind the `zmk-config` volume to the correct path pointing to your local [zmk-config](customization.md) folder:
 
 ```
 docker volume create --driver local -o o=bind -o type=none -o \
