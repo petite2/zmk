@@ -26,9 +26,16 @@ struct sensors_data_item {
 
 #define _SENSOR_ITEM(node)                                                                         \
     {.dev = NULL, .trigger = {.type = SENSOR_TRIG_DELTA, .chan = SENSOR_CHAN_ROTATION}},
+
+#define _SENSOR_ITEM_ALERT(node)                                                                         \
+    {.dev = NULL, .trigger = {.type = SENSOR_TRIG_DATA_READY, .chan = SENSOR_CHAN_ALL}},
+
 #define SENSOR_ITEM(idx, _)                                                                        \
     COND_CODE_1(DT_NODE_HAS_STATUS(ZMK_KEYMAP_SENSORS_BY_IDX(idx), okay),                          \
-                (_SENSOR_ITEM(ZMK_KEYMAP_SENSORS_BY_IDX(idx))), ())
+                (COND_CODE_1(DT_NODE_HAS_PROP(ZMK_KEYMAP_SENSORS_BY_IDX(idx), alert_gpios),             \
+                            (_SENSOR_ITEM_ALERT(ZMK_KEYMAP_SENSORS_BY_IDX(idx))),                        \
+                            (_SENSOR_ITEM(ZMK_KEYMAP_SENSORS_BY_IDX(idx))))),                  \
+                ())
 
 static struct sensors_data_item sensors[] = {UTIL_LISTIFY(ZMK_KEYMAP_SENSORS_LEN, SENSOR_ITEM, 0)};
 

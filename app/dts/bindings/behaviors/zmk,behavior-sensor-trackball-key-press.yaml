@@ -1,0 +1,30 @@
+# Copyright (c) 2020 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Sensor trackball key press/release behavior
+
+compatible: "zmk,behavior-sensor-trackball-key-press"
+
+properties:
+  label:
+    type: string
+    required: true
+  scan-interval-ms:
+    type: int
+  orientation:
+    type: string
+    required: false
+    default: "south"
+    enum:
+      - "east"
+      - "north"
+      - "south"
+      - "west"
+  "#sensor-binding-cells":
+    type: int
+    required: true
+    const: 2
+
+sensor-binding-cells:
+  - param1
+  - param2

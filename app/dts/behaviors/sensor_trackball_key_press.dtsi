@@ -1,0 +1,17 @@
+/*
+ * Copyright (c) 2020 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+	behaviors {
+		/omit-if-no-ref/ trackball_kp: behavior_sensor_trackball_key_press {
+			compatible = "zmk,behavior-sensor-trackball-key-press";
+			label = "TRACKBALL_KEY_PRESS";
+			scan-interval-ms = <10>;
+			orientation = "south";
+			#sensor-binding-cells = <2>;
+		};
+	};
+};
