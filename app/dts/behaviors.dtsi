@@ -6,6 +6,9 @@
 #include <behaviors/gresc.dtsi>
 #include <behaviors/sticky_key.dtsi>
 #include <behaviors/momentary_layer.dtsi>
+#include <behaviors/mouse_key_press.dtsi>
+#include <behaviors/mouse_move.dtsi>
+#include <behaviors/mouse_scroll.dtsi>
 #include <behaviors/toggle_layer.dtsi>
 #include <behaviors/to_layer.dtsi>
 #include <behaviors/reset.dtsi>
