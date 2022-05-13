@@ -14,6 +14,7 @@
 #include <settings/settings.h>
 #include <drivers/gpio.h>
 #include <drivers/ext_power.h>
+#include <drivers/sensor.h>
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
@@ -57,6 +58,19 @@ int ext_power_save_state() {
 #endif
 }
 
+static bool drivers_update_power_state(bool power) {
+    LOG_DBG("drivers_update_power_state: %s", power?"true":"false");
+    static const struct device *trackball;
+    trackball = device_get_binding("TRACKBALL");
+
+    if (trackball != NULL) {
+        struct sensor_value val;
+        val.val1 = power? 1 : 0;
+        sensor_attr_set(trackball, 0, SENSOR_ATTR_CONFIGURATION, &val);
+    }
+    return (trackball != NULL);
+}
+
 static int ext_power_generic_enable(const struct device *dev) {
     struct ext_power_generic_data *data = dev->data;
     const struct ext_power_generic_config *config = dev->config;
@@ -66,7 +80,12 @@ static int ext_power_generic_enable(const struct device *dev) {
         return -EIO;
     }
     data->status = true;
+    drivers_update_power_state(true);
+#if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
+    return 0;
+#else
     return ext_power_save_state();
+#endif
 }
 
 static int ext_power_generic_disable(const struct device *dev) {
@@ -78,7 +97,12 @@ static int ext_power_generic_disable(const struct device *dev) {
         return -EIO;
     }
     data->status = false;
+    drivers_update_power_state(false);
+#if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
+    return 0;
+#else
     return ext_power_save_state();
+#endif
 }
 
 static int ext_power_generic_get(const struct device *dev) {
@@ -141,7 +165,7 @@ static int ext_power_generic_init(const struct device *dev) {
         return -EIO;
     }
 
-#if IS_ENABLED(CONFIG_SETTINGS)
+#if IS_ENABLED(CONFIG_SETTINGS) && !IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
     settings_subsys_init();
 
     int err = settings_register(&ext_power_conf);

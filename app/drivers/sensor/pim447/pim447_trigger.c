@@ -122,13 +122,13 @@ static void pim447_thread_cb(const struct device *dev)
 static void pim447_thread(int dev_ptr, int unused)
 {
 	struct device *dev = INT_TO_POINTER(dev_ptr);
-	struct pim447_data *data = dev->driver_data;
+	struct pim447_data *data = (struct pim447_data *)dev->data;
 
 	ARG_UNUSED(unused);
 
 	while (1) {
 		k_sem_take(&data->gpio_sem, K_FOREVER);
-		pim447_thread_cb(dev);
+		pim447_thread_cb(data->dev);
 	}
 }
 #endif
@@ -201,4 +201,31 @@ int pim447_init_interrupt(const struct device *dev)
 #endif
 
 	return 0;
+}
+
+void pim447_suspend_interrupt(const struct device *dev) {
+	setup_alert(dev, false);
+	/* If ALERT is active we probably won't get the rising edge,
+	 * so invoke the callback manually.
+	 */
+	struct pim447_data *data = (struct pim447_data *)dev->data;
+	const struct pim447_config *cfg =
+		(const struct pim447_config *)dev->config;
+	if (gpio_pin_get(data->alert_gpio, cfg->alert_pin)) {
+		LOG_DBG("Already got new alert, invoking callback manually.");
+		handle_alert(dev);
+	}
+}
+void pim447_resume_interrupt(const struct device *dev) {
+	setup_alert(dev, true);
+	/* If ALERT is active we probably won't get the rising edge,
+	 * so invoke the callback manually.
+	 */
+	struct pim447_data *data = (struct pim447_data *)dev->data;
+	const struct pim447_config *cfg =
+		(const struct pim447_config *)dev->config;
+	if (gpio_pin_get(data->alert_gpio, cfg->alert_pin)) {
+		LOG_DBG("Already got new alert, invoking callback manually.");
+		handle_alert(dev);
+	}
 }

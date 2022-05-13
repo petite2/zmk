@@ -17,6 +17,8 @@
 
 LOG_MODULE_REGISTER(PIM447, CONFIG_SENSOR_LOG_LEVEL);
 
+static int ext_power_status = true;
+
 static int pim447_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
 	struct pim447_data *data = dev->data;
@@ -86,11 +88,16 @@ static int pim447_led_set(const struct device *dev,
 	return 0;
 }
 
+static int pim447_update_ext_power(const struct device *dev, bool ext_power_status_new_value);
+
 int pim447_attr_set(const struct device *dev,
 		    enum sensor_channel chan,
 		    enum sensor_attribute attr,
 		    const struct sensor_value *val)
 {
+	if (attr == SENSOR_ATTR_CONFIGURATION) {
+		return pim447_update_ext_power(dev, (val->val1 == 1));
+	}
 	const struct device *i2c = pim447_i2c_device(dev);
 	uint8_t address = pim447_i2c_address(dev);
 	enum pim447_sensor_attribute pim447_attr = (enum pim447_sensor_attribute)attr;
@@ -192,6 +199,53 @@ static int pim447_init(const struct device *dev)
 	data->last_swtch = 0;
 	LOG_INF("Successfully initialized PIM447");
 
+	return 0;
+}
+
+static int pim447_update_ext_power(const struct device *dev, bool ext_power_status_new_value) {
+
+	// minimum sleep needed when waking up
+	if (ext_power_status_new_value == true) {
+		k_sleep(K_MSEC(30));
+	}
+#ifdef CONFIG_PIM447_TRIGGER
+	if (ext_power_status && !ext_power_status_new_value) {
+		pim447_suspend_interrupt(dev);
+		k_sleep(K_MSEC(30));
+	}
+#endif
+	// first update to I2C
+	if (dev->data != NULL) {
+		struct pim447_data *data = dev->data;
+		if (data->bus != NULL) {
+			if(i2c_update_ext_power(data->bus, ext_power_status_new_value)) {
+				LOG_ERR("Failed i2c_update_ext_power!");
+				return -EIO;
+			}
+		} else {
+			LOG_ERR("I2C bus is NULL");
+		}
+	} else {
+		LOG_ERR("trackball data is NULL");
+	}
+
+	if (ext_power_status != ext_power_status_new_value) {
+		if (ext_power_status_new_value == true)
+		{
+			// sleep after I2C reset
+			k_sleep(K_MSEC(30));
+
+			// re-init trackball, sends commands through i2c bus
+			pim447_init(dev);
+#ifdef CONFIG_PIM447_TRIGGER
+			pim447_resume_interrupt(dev);
+#endif
+		} else {
+			// no-op for now
+		}
+
+		ext_power_status = ext_power_status_new_value;
+	}
 	return 0;
 }
 

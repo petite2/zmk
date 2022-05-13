@@ -98,4 +98,6 @@ int pim447_trigger_set(const struct device *dev,
 		       sensor_trigger_handler_t handler);
 
 int pim447_init_interrupt(const struct device *dev);
+void pim447_suspend_interrupt(const struct device *dev);
+void pim447_resume_interrupt(const struct device *dev);
 #endif
