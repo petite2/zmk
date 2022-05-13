@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <drivers/ext_power.h>
 #include <drivers/sensor.h>
 #include <devicetree.h>
 #include <init.h>
@@ -23,6 +24,10 @@ struct sensors_data_item {
     const struct device *dev;
     struct sensor_trigger trigger;
 };
+
+#if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
+static const struct device *ext_power;
+#endif
 
 #define _SENSOR_ITEM(node)                                                                         \
     {.dev = NULL, .trigger = {.type = SENSOR_TRIG_DELTA, .chan = SENSOR_CHAN_ROTATION}},
@@ -79,6 +84,16 @@ static int zmk_sensors_init(const struct device *_arg) {
     int absolute_index = 0;
 
     UTIL_LISTIFY(ZMK_KEYMAP_SENSORS_LEN, SENSOR_INIT, 0)
+
+#if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
+    ext_power = device_get_binding("EXT_POWER");
+    if (ext_power != NULL) {
+        int rc = ext_power_disable(ext_power);
+        if (rc != 0) {
+            LOG_ERR("Unable to disable EXT_POWER: %d", rc);
+        }
+    }
+#endif
     return 0;
 }
 

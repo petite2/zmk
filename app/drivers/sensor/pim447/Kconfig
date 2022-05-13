@@ -35,6 +35,9 @@ endchoice
 config PIM447_TRIGGER
 	bool
 
+config PIM447_DEFAULT_EXT_POWER_OFF
+	bool "Turn off external power after trackball initialization"
+
 config PIM447_THREAD_PRIORITY
 	int "Thread priority"
 	depends on PIM447_TRIGGER_OWN_THREAD
