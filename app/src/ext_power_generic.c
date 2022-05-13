@@ -59,13 +59,13 @@ int ext_power_save_state() {
 }
 
 static bool drivers_update_power_state(bool power) {
-    LOG_DBG("drivers_update_power_state: %s", power?"true":"false");
+    LOG_DBG("drivers_update_power_state: %s", power ? "true" : "false");
     static const struct device *trackball;
     trackball = device_get_binding("TRACKBALL");
 
     if (trackball != NULL) {
         struct sensor_value val;
-        val.val1 = power? 1 : 0;
+        val.val1 = power ? 1 : 0;
         sensor_attr_set(trackball, 0, SENSOR_ATTR_CONFIGURATION, &val);
     }
     return (trackball != NULL);

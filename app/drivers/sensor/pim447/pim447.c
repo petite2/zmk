@@ -19,258 +19,238 @@ LOG_MODULE_REGISTER(PIM447, CONFIG_SENSOR_LOG_LEVEL);
 
 static int ext_power_status = true;
 
-static int pim447_sample_fetch(const struct device *dev, enum sensor_channel chan)
-{
-	struct pim447_data *data = dev->data;
-	const struct device *i2c = pim447_i2c_device(dev);
-	uint8_t address = pim447_i2c_address(dev);
-	uint8_t tx_buf[] = {
-		PIM447_CMD_READ_LEFT
-	};
-	uint8_t rx_buf[5];
+static int pim447_sample_fetch(const struct device *dev, enum sensor_channel chan) {
+    struct pim447_data *data = dev->data;
+    const struct device *i2c = pim447_i2c_device(dev);
+    uint8_t address = pim447_i2c_address(dev);
+    uint8_t tx_buf[] = {PIM447_CMD_READ_LEFT};
+    uint8_t rx_buf[5];
 
-	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
+    __ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
 
-	if (i2c_write_read(i2c, address, tx_buf, sizeof(tx_buf),
-			   rx_buf, sizeof(rx_buf)) < 0) {
-		LOG_DBG("Failed to read sample!");
-		return -EIO;
-	}
+    if (i2c_write_read(i2c, address, tx_buf, sizeof(tx_buf), rx_buf, sizeof(rx_buf)) < 0) {
+        LOG_DBG("Failed to read sample!");
+        return -EIO;
+    }
 
-	data->dx = (int16_t)rx_buf[1] - rx_buf[0];
-	data->dy = (int16_t)rx_buf[2] - rx_buf[3];
-	data->last_swtch = data->swtch;
-	data->swtch = rx_buf[4];
-	LOG_DBG("Sample fetched from PIM447 left %x, right %x, up %x, down %x, press_count %x, press_state %x, was_pressed %x",
-		rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3], (rx_buf[4] & ~PIM477_SWITCH_STATE_FLAG), (rx_buf[4] & PIM477_SWITCH_STATE_FLAG) >> 7, (data->last_swtch & PIM477_SWITCH_STATE_FLAG) >> 7
-	);
+    data->dx = (int16_t)rx_buf[1] - rx_buf[0];
+    data->dy = (int16_t)rx_buf[2] - rx_buf[3];
+    data->last_swtch = data->swtch;
+    data->swtch = rx_buf[4];
+    LOG_DBG("Sample fetched from PIM447 left %x, right %x, up %x, down %x, press_count %x, "
+            "press_state %x, was_pressed %x",
+            rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3], (rx_buf[4] & ~PIM477_SWITCH_STATE_FLAG),
+            (rx_buf[4] & PIM477_SWITCH_STATE_FLAG) >> 7,
+            (data->last_swtch & PIM477_SWITCH_STATE_FLAG) >> 7);
 
-	return 0;
+    return 0;
 }
 
-static int pim447_channel_get(const struct device *dev,
-			      enum sensor_channel chan,
-			      struct sensor_value *val)
-{
-	const struct pim447_data *data = dev->data;
+static int pim447_channel_get(const struct device *dev, enum sensor_channel chan,
+                              struct sensor_value *val) {
+    const struct pim447_data *data = dev->data;
 
-	if (chan == SENSOR_CHAN_POS_DX) {
-		val->val1 = data->dx;
-	} else if (chan == SENSOR_CHAN_POS_DY) {
-		val->val1 = data->dy;
-	} else if (chan == SENSOR_CHAN_POS_DZ) {
-		val->val1 = (((data->last_swtch & PIM477_SWITCH_STATE_FLAG) >> 7) << 1) | ((data->swtch & PIM477_SWITCH_STATE_FLAG) >> 7); // pressed status
-		val->val2 = data->swtch & ~PIM477_SWITCH_STATE_FLAG; // number of clicks
-	} else {
-		return -ENOTSUP;
-	}
+    if (chan == SENSOR_CHAN_POS_DX) {
+        val->val1 = data->dx;
+    } else if (chan == SENSOR_CHAN_POS_DY) {
+        val->val1 = data->dy;
+    } else if (chan == SENSOR_CHAN_POS_DZ) {
+        val->val1 = (((data->last_swtch & PIM477_SWITCH_STATE_FLAG) >> 7) << 1) |
+                    ((data->swtch & PIM477_SWITCH_STATE_FLAG) >> 7); // pressed status
+        val->val2 = data->swtch & ~PIM477_SWITCH_STATE_FLAG;         // number of clicks
+    } else {
+        return -ENOTSUP;
+    }
 
-	return 0;
+    return 0;
 }
 
-static int pim447_led_set(const struct device *dev,
-		   uint8_t led_register,
-		   uint8_t offset,
-		   const struct sensor_value *val)
-{
-	const struct device *i2c = pim447_i2c_device(dev);
-	uint8_t address = pim447_i2c_address(dev);
-	uint8_t tx_buf[] = {
-		led_register,
-		(val->val1 >> offset) & 0xFF,
-	};
+static int pim447_led_set(const struct device *dev, uint8_t led_register, uint8_t offset,
+                          const struct sensor_value *val) {
+    const struct device *i2c = pim447_i2c_device(dev);
+    uint8_t address = pim447_i2c_address(dev);
+    uint8_t tx_buf[] = {
+        led_register,
+        (val->val1 >> offset) & 0xFF,
+    };
 
-	if (i2c_write(i2c, tx_buf, sizeof(tx_buf), address) < 0) {
-		LOG_DBG("Failed to set trackball LED");
-		return -EIO;
-	}
+    if (i2c_write(i2c, tx_buf, sizeof(tx_buf), address) < 0) {
+        LOG_DBG("Failed to set trackball LED");
+        return -EIO;
+    }
 
-	return 0;
+    return 0;
 }
 
 static int pim447_update_ext_power(const struct device *dev, bool ext_power_status_new_value);
 
-int pim447_attr_set(const struct device *dev,
-		    enum sensor_channel chan,
-		    enum sensor_attribute attr,
-		    const struct sensor_value *val)
-{
-	if (attr == SENSOR_ATTR_CONFIGURATION) {
-		return pim447_update_ext_power(dev, (val->val1 == 1));
-	}
-	const struct device *i2c = pim447_i2c_device(dev);
-	uint8_t address = pim447_i2c_address(dev);
-	enum pim447_sensor_attribute pim447_attr = (enum pim447_sensor_attribute)attr;
-	if (pim447_attr == PIM447_SENSOR_ATTR_LED) {
-		uint8_t tx_buf[] = {
-			PIM447_CMD_LED_RED,
-			(val->val1 >> 24) & 0xFF,
-			(val->val1 >> 16) & 0xFF,
-			(val->val1 >>  8) & 0xFF,
-			(val->val1 >>  0) & 0xFF,
-		};
+int pim447_attr_set(const struct device *dev, enum sensor_channel chan, enum sensor_attribute attr,
+                    const struct sensor_value *val) {
+    if (attr == SENSOR_ATTR_CONFIGURATION) {
+        return pim447_update_ext_power(dev, (val->val1 == 1));
+    }
+    const struct device *i2c = pim447_i2c_device(dev);
+    uint8_t address = pim447_i2c_address(dev);
+    enum pim447_sensor_attribute pim447_attr = (enum pim447_sensor_attribute)attr;
+    if (pim447_attr == PIM447_SENSOR_ATTR_LED) {
+        uint8_t tx_buf[] = {
+            PIM447_CMD_LED_RED,      (val->val1 >> 24) & 0xFF, (val->val1 >> 16) & 0xFF,
+            (val->val1 >> 8) & 0xFF, (val->val1 >> 0) & 0xFF,
+        };
 
-		if (i2c_write(i2c, tx_buf, sizeof(tx_buf), address) < 0) {
-			LOG_DBG("Failed to set the trackball LED attributes");
-			return -EIO;
-		}
-	} else if (pim447_attr == PIM447_SENSOR_ATTR_LED_R) {
-		return pim447_led_set(dev, PIM447_CMD_LED_RED, 24, val);
-	} else if (pim447_attr == PIM447_SENSOR_ATTR_LED_G) {
-		return pim447_led_set(dev, PIM447_CMD_LED_GREEN, 16, val);
-	} else if (pim447_attr == PIM447_SENSOR_ATTR_LED_B) {
-		return pim447_led_set(dev, PIM447_CMD_LED_BLUE, 8, val);
-	} else if (pim447_attr == PIM447_SENSOR_ATTR_LED_W) {
-		return pim447_led_set(dev, PIM447_CMD_LED_WHITE, 0, val);
-	} else {
-		LOG_DBG("Unsupported trackball LED attribute %d", pim447_attr);
-		return -ENOTSUP;
-	}
-	LOG_INF("Successfully written PIM447 led with %x", val->val1);
+        if (i2c_write(i2c, tx_buf, sizeof(tx_buf), address) < 0) {
+            LOG_DBG("Failed to set the trackball LED attributes");
+            return -EIO;
+        }
+    } else if (pim447_attr == PIM447_SENSOR_ATTR_LED_R) {
+        return pim447_led_set(dev, PIM447_CMD_LED_RED, 24, val);
+    } else if (pim447_attr == PIM447_SENSOR_ATTR_LED_G) {
+        return pim447_led_set(dev, PIM447_CMD_LED_GREEN, 16, val);
+    } else if (pim447_attr == PIM447_SENSOR_ATTR_LED_B) {
+        return pim447_led_set(dev, PIM447_CMD_LED_BLUE, 8, val);
+    } else if (pim447_attr == PIM447_SENSOR_ATTR_LED_W) {
+        return pim447_led_set(dev, PIM447_CMD_LED_WHITE, 0, val);
+    } else {
+        LOG_DBG("Unsupported trackball LED attribute %d", pim447_attr);
+        return -ENOTSUP;
+    }
+    LOG_INF("Successfully written PIM447 led with %x", val->val1);
 
-	return 0;
+    return 0;
 }
 
 static const struct sensor_driver_api pim447_driver_api = {
 #ifdef CONFIG_PIM447_TRIGGER
-	.trigger_set = pim447_trigger_set,
+    .trigger_set = pim447_trigger_set,
 #endif
-	.attr_set = pim447_attr_set,
-	.sample_fetch = pim447_sample_fetch,
-	.channel_get = pim447_channel_get,
+    .attr_set = pim447_attr_set,
+    .sample_fetch = pim447_sample_fetch,
+    .channel_get = pim447_channel_get,
 };
 
-static uint16_t pim447_version(const struct device *dev)
-{
-	const struct device *i2c = pim447_i2c_device(dev);
-	uint8_t address = pim447_i2c_address(dev);
-	uint8_t tx_buf[] = {
-		PIM447_CMD_READ_CHIP_ID_LOW
-	};
-	uint8_t rx_buf[2];
+static uint16_t pim447_version(const struct device *dev) {
+    const struct device *i2c = pim447_i2c_device(dev);
+    uint8_t address = pim447_i2c_address(dev);
+    uint8_t tx_buf[] = {PIM447_CMD_READ_CHIP_ID_LOW};
+    uint8_t rx_buf[2];
 
-	if (i2c_write_read(i2c, address, tx_buf, sizeof(tx_buf),
-			   rx_buf, sizeof(rx_buf)) < 0) {
-		LOG_DBG("Failed to read chip version sample!");
-		return -EIO;
-	}
+    if (i2c_write_read(i2c, address, tx_buf, sizeof(tx_buf), rx_buf, sizeof(rx_buf)) < 0) {
+        LOG_DBG("Failed to read chip version sample!");
+        return -EIO;
+    }
 
-	return rx_buf[0] | (rx_buf[1] << 8);
+    return rx_buf[0] | (rx_buf[1] << 8);
 }
 
+static int pim447_init(const struct device *dev) {
+    struct pim447_data *data = dev->data;
+    const struct pim447_config *cfg = dev->config;
+    const struct device *i2c = device_get_binding(cfg->bus_name);
 
-static int pim447_init(const struct device *dev)
-{
-	struct pim447_data *data = dev->data;
-	const struct pim447_config *cfg = dev->config;
-	const struct device *i2c = device_get_binding(cfg->bus_name);
+    if (i2c == NULL) {
+        LOG_DBG("Failed to get pointer to %s device!", cfg->bus_name);
+        return -EINVAL;
+    }
+    data->bus = i2c;
 
-	if (i2c == NULL) {
-		LOG_DBG("Failed to get pointer to %s device!",
-			cfg->bus_name);
-		return -EINVAL;
-	}
-	data->bus = i2c;
+    if (!cfg->base_address) {
+        LOG_DBG("No I2C address");
+        return -EINVAL;
+    }
+    data->dev = dev;
 
-	if (!cfg->base_address) {
-		LOG_DBG("No I2C address");
-		return -EINVAL;
-	}
-	data->dev = dev;
-
-	if (pim447_version(dev) != PIM447_CHIP_ID) {
-		LOG_ERR("Invalid chip ID %x for PIM447 device at I2C address %x", pim447_version(dev), pim447_i2c_address(dev));
-		return -EINVAL;
-	}
+    if (pim447_version(dev) != PIM447_CHIP_ID) {
+        LOG_ERR("Invalid chip ID %x for PIM447 device at I2C address %x", pim447_version(dev),
+                pim447_i2c_address(dev));
+        return -EINVAL;
+    }
 
 #ifdef CONFIG_PIM447_TRIGGER
-	if (pim447_init_interrupt(dev) < 0) {
-		LOG_DBG("Failed to initialize interrupt");
-		return -EIO;
-	}
+    if (pim447_init_interrupt(dev) < 0) {
+        LOG_DBG("Failed to initialize interrupt");
+        return -EIO;
+    }
 #endif
 
     // Test set LED to red
-	struct sensor_value val;
-	val.val1 = 0xf000000;
+    struct sensor_value val;
+    val.val1 = 0xf000000;
     pim447_attr_set(dev, 0, PIM447_SENSOR_ATTR_LED, &val);
-	// Initialize data
-	data->swtch = 0;
-	data->last_swtch = 0;
-	LOG_INF("Successfully initialized PIM447");
+    // Initialize data
+    data->swtch = 0;
+    data->last_swtch = 0;
+    LOG_INF("Successfully initialized PIM447");
 
-	return 0;
+    return 0;
 }
 
 static int pim447_update_ext_power(const struct device *dev, bool ext_power_status_new_value) {
 
-	// minimum sleep needed when waking up
-	if (ext_power_status_new_value == true) {
-		k_sleep(K_MSEC(30));
-	}
+    // minimum sleep needed when waking up
+    if (ext_power_status_new_value == true) {
+        k_sleep(K_MSEC(30));
+    }
 #ifdef CONFIG_PIM447_TRIGGER
-	if (ext_power_status && !ext_power_status_new_value) {
-		pim447_suspend_interrupt(dev);
-		k_sleep(K_MSEC(30));
-	}
+    if (ext_power_status && !ext_power_status_new_value) {
+        pim447_suspend_interrupt(dev);
+        k_sleep(K_MSEC(30));
+    }
 #endif
-	// first update to I2C
-	if (dev->data != NULL) {
-		struct pim447_data *data = dev->data;
-		if (data->bus != NULL) {
-			if(i2c_update_ext_power(data->bus, ext_power_status_new_value)) {
-				LOG_ERR("Failed i2c_update_ext_power!");
-				return -EIO;
-			}
-		} else {
-			LOG_ERR("I2C bus is NULL");
-		}
-	} else {
-		LOG_ERR("trackball data is NULL");
-	}
+    // first update to I2C
+    if (dev->data != NULL) {
+        struct pim447_data *data = dev->data;
+        if (data->bus != NULL) {
+            if (i2c_update_ext_power(data->bus, ext_power_status_new_value)) {
+                LOG_ERR("Failed i2c_update_ext_power!");
+                return -EIO;
+            }
+        } else {
+            LOG_ERR("I2C bus is NULL");
+        }
+    } else {
+        LOG_ERR("trackball data is NULL");
+    }
 
-	if (ext_power_status != ext_power_status_new_value) {
-		if (ext_power_status_new_value == true)
-		{
-			// sleep after I2C reset
-			k_sleep(K_MSEC(30));
+    if (ext_power_status != ext_power_status_new_value) {
+        if (ext_power_status_new_value == true) {
+            // sleep after I2C reset
+            k_sleep(K_MSEC(30));
 
-			// re-init trackball, sends commands through i2c bus
-			pim447_init(dev);
+            // re-init trackball, sends commands through i2c bus
+            pim447_init(dev);
 #ifdef CONFIG_PIM447_TRIGGER
-			pim447_resume_interrupt(dev);
+            pim447_resume_interrupt(dev);
 #endif
-		} else {
-			// no-op for now
-		}
+        } else {
+            // no-op for now
+        }
 
-		ext_power_status = ext_power_status_new_value;
-	}
-	return 0;
+        ext_power_status = ext_power_status_new_value;
+    }
+    return 0;
 }
 
 #ifdef CONFIG_PIM447_TRIGGER
-#define PIM447_INST(n)\
-    struct pim447_data pim447_data_##n;\
-    const struct pim447_config pim447_cfg_##n = { \
-        .bus_name = DT_INST_BUS_LABEL(n),\
-        .alert_gpio_name = DT_INST_GPIO_LABEL(n, alert_gpios),\
-        .base_address = DT_INST_REG_ADDR(n), \
-        .alert_pin = DT_INST_GPIO_PIN(n, alert_gpios), \
-        .alert_flags = DT_INST_GPIO_FLAGS(n, alert_gpios),\
-    }; \
-    DEVICE_DT_INST_DEFINE(n, pim447_init, device_pm_control_nop, &pim447_data_##n, &pim447_cfg_##n,      \
-                          POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &pim447_driver_api);
+#define PIM447_INST(n)                                                                             \
+    struct pim447_data pim447_data_##n;                                                            \
+    const struct pim447_config pim447_cfg_##n = {                                                  \
+        .bus_name = DT_INST_BUS_LABEL(n),                                                          \
+        .alert_gpio_name = DT_INST_GPIO_LABEL(n, alert_gpios),                                     \
+        .base_address = DT_INST_REG_ADDR(n),                                                       \
+        .alert_pin = DT_INST_GPIO_PIN(n, alert_gpios),                                             \
+        .alert_flags = DT_INST_GPIO_FLAGS(n, alert_gpios),                                         \
+    };                                                                                             \
+    DEVICE_DT_INST_DEFINE(n, pim447_init, NULL, &pim447_data_##n, &pim447_cfg_##n, POST_KERNEL,    \
+                          CONFIG_SENSOR_INIT_PRIORITY, &pim447_driver_api);
 #else
-#define PIM447_INST(n)\
-    struct pim447_data pim447_data_##n;\
-    const struct pim447_config pim447_cfg_##n = { \
-        .bus_name = DT_INST_BUS_LABEL(n),\
-        .base_address = DT_INST_REG_ADDR(n), \
-    };\
-    DEVICE_DT_INST_DEFINE(n, pim447_init, device_pm_control_nop, &pim447_data_##n, &pim447_cfg_##n,      \
-                          POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &pim447_driver_api);
+#define PIM447_INST(n)                                                                             \
+    struct pim447_data pim447_data_##n;                                                            \
+    const struct pim447_config pim447_cfg_##n = {                                                  \
+        .bus_name = DT_INST_BUS_LABEL(n),                                                          \
+        .base_address = DT_INST_REG_ADDR(n),                                                       \
+    };                                                                                             \
+    DEVICE_DT_INST_DEFINE(n, pim447_init, NULL, &pim447_data_##n, &pim447_cfg_##n, POST_KERNEL,    \
+                          CONFIG_SENSOR_INIT_PRIORITY, &pim447_driver_api);
 #endif
 
 DT_INST_FOREACH_STATUS_OKAY(PIM447_INST)
-

@@ -22,7 +22,8 @@ struct zmk_trackball_state_changed {
 ZMK_EVENT_DECLARE(zmk_trackball_state_changed);
 
 static inline struct zmk_trackball_state_changed_event *
-zmk_trackball_state_changed_from_encoded(uint32_t encoded, int32_t x, int32_t y, int64_t timestamp) {
+zmk_trackball_state_changed_from_encoded(uint32_t encoded, int32_t x, int32_t y,
+                                         int64_t timestamp) {
     // uint8_t rotation = TB_ROTATION_DECODE(encoded);
     int16_t rotated_x = (x & 0xFFFF), rotated_y = (y & 0xFFFF);
     // switch(rotation) {
@@ -42,10 +43,10 @@ zmk_trackball_state_changed_from_encoded(uint32_t encoded, int32_t x, int32_t y,
     //         break;
     // }
 
-    return new_zmk_trackball_state_changed((struct zmk_trackball_state_changed){
-        .mode = TB_MODE_DECODE(encoded), 
-        .scale = TB_SCALE_DECODE(encoded),
-        .x = rotated_x,
-        .y = rotated_y,
-        .timestamp = timestamp});
+    return new_zmk_trackball_state_changed(
+        (struct zmk_trackball_state_changed){.mode = TB_MODE_DECODE(encoded),
+                                             .scale = TB_SCALE_DECODE(encoded),
+                                             .x = rotated_x,
+                                             .y = rotated_y,
+                                             .timestamp = timestamp});
 }

@@ -30,7 +30,7 @@ static void listener_trackball_mouse_move(const struct zmk_trackball_state_chang
     zmk_hid_mouse_movement_set(x, y);
     zmk_endpoints_send_mouse_report();
     zmk_hid_mouse_movement_set(0, 0);
-} 
+}
 
 static void listener_trackball_mouse_scroll(const struct zmk_trackball_state_changed *ev) {
     LOG_DBG("trackball scroll scale: 0x%02X, x: 0x%02X, y: 0x%02X", ev->scale, ev->x, ev->y);
@@ -46,24 +46,24 @@ static void listener_trackball_mouse_scroll(const struct zmk_trackball_state_cha
     zmk_hid_mouse_scroll_set(x, y);
     zmk_endpoints_send_mouse_report();
     zmk_hid_mouse_scroll_set(0, 0);
-} 
+}
 
 int zmk_trackball_listener(const zmk_event_t *eh) {
     const struct zmk_trackball_state_changed *tb_ev = as_zmk_trackball_state_changed(eh);
     if (tb_ev) {
         switch (tb_ev->mode) {
-            case MOUSE_MOVE_MODE:
-                listener_trackball_mouse_move(tb_ev);
-                break;
-            case SCROLL_MOVE_MODE:
-                listener_trackball_mouse_scroll(tb_ev);
-                break;
-            default:
-                LOG_DBG("Unsupported trackball move mode %d", tb_ev->mode);
-                return -ENOTSUP;
+        case MOUSE_MOVE_MODE:
+            listener_trackball_mouse_move(tb_ev);
+            break;
+        case SCROLL_MOVE_MODE:
+            listener_trackball_mouse_scroll(tb_ev);
+            break;
+        default:
+            LOG_DBG("Unsupported trackball move mode %d", tb_ev->mode);
+            return -ENOTSUP;
         }
     }
-    
+
     return 0;
 }
 

@@ -90,7 +90,7 @@ static const uint8_t zmk_hid_report_desc[] = {
     /* INPUT (Data,Ary,Abs) */
     HID_INPUT(0x00),
     HID_END_COLLECTION,
-    
+
     HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),
     HID_USAGE(HID_USAGE_GD_MOUSE),
     HID_COLLECTION(HID_COLLECTION_APPLICATION),
@@ -124,7 +124,7 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_USAGE(HID_USAGE_GD_WHEEL),
     /* Input (Data,Var,Rel) */
     HID_INPUT(0x06),
-    
+
     HID_USAGE_PAGE(HID_USAGE_CONSUMER),
     /* USAGE (AC Pan) */
     0x0A,
@@ -135,7 +135,7 @@ static const uint8_t zmk_hid_report_desc[] = {
     HID_REPORT_COUNT(0x01),
     /* Input (Data,Var,Rel) */
     HID_INPUT(0x06),
-    
+
     HID_END_COLLECTION,
     HID_END_COLLECTION,
 };

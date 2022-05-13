@@ -154,8 +154,7 @@ int zmk_endpoints_send_mouse_report() {
         int err = zmk_usb_hid_send_report((uint8_t *)mouse_report, sizeof(*mouse_report));
         if (err) {
             LOG_ERR("FAILED TO SEND OVER USB: %d", err);
-        }
-        else {
+        } else {
             LOG_DBG("SEND OVER USB");
         }
         return err;
@@ -167,8 +166,7 @@ int zmk_endpoints_send_mouse_report() {
         int err = zmk_hog_send_mouse_report(&mouse_report->body);
         if (err) {
             LOG_ERR("FAILED TO SEND OVER HOG: %d", err);
-        }
-        else {
+        } else {
             LOG_DBG("SEND OVER HOG");
         }
         return err;
