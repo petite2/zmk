@@ -15,6 +15,11 @@
 #include <drivers/gpio.h>
 #include <drivers/ext_power.h>
 #include <drivers/sensor.h>
+#if IS_ENABLED(CONFIG_PIM447)
+#include <bluetooth/services/bas.h>
+#include <zmk/trackball.h>
+#include <zmk/usb.h>
+#endif
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
@@ -58,17 +63,26 @@ int ext_power_save_state() {
 #endif
 }
 
-static bool drivers_update_power_state(bool power) {
+static void drivers_update_power_state(bool power) {
     LOG_DBG("drivers_update_power_state: %s", power ? "true" : "false");
-    static const struct device *trackball;
-    trackball = device_get_binding("TRACKBALL");
+#if IS_ENABLED(CONFIG_PIM447)
+    const struct device *trackball = device_get_binding("TRACKBALL");
 
     if (trackball != NULL) {
         struct sensor_value val;
         val.val1 = power ? 1 : 0;
         sensor_attr_set(trackball, 0, SENSOR_ATTR_CONFIGURATION, &val);
+        if (power) {
+            bool usb_present = false;
+#if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
+            usb_present = zmk_usb_is_powered();
+#endif
+            uint8_t batt_level = bt_bas_get_battery_level();
+            struct sensor_value val = {.val1 = get_rgb_from_batt_level(batt_level, usb_present)};
+            sensor_attr_set(trackball, 0, SENSOR_ATTR_PRIV_START + 1, &val);
+        }
     }
-    return (trackball != NULL);
+#endif
 }
 
 static int ext_power_generic_enable(const struct device *dev) {

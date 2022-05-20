@@ -16,6 +16,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/sensors.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/sensor_event.h>
+#if IS_ENABLED(CONFIG_PIM447)
+#include <bluetooth/services/bas.h>
+#include <zmk/trackball.h>
+#include <zmk/usb.h>
+#endif
 
 #if ZMK_KEYMAP_HAS_SENSORS
 
@@ -25,9 +30,6 @@ struct sensors_data_item {
     struct sensor_trigger trigger;
 };
 
-#if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
-static const struct device *ext_power;
-#endif
 
 #define _SENSOR_ITEM(node)                                                                         \
     {.dev = NULL, .trigger = {.type = SENSOR_TRIG_DELTA, .chan = SENSOR_CHAN_ROTATION}},
@@ -85,8 +87,21 @@ static int zmk_sensors_init(const struct device *_arg) {
 
     UTIL_LISTIFY(ZMK_KEYMAP_SENSORS_LEN, SENSOR_INIT, 0)
 
+#if IS_ENABLED(CONFIG_PIM447) && !IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
+    const struct device *trackball = device_get_binding("TRACKBALL");
+
+    if (trackball != NULL) {
+        bool usb_present = false;
+#if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
+        usb_present = zmk_usb_is_powered();
+#endif
+        uint8_t batt_level = bt_bas_get_battery_level();
+        struct sensor_value val = {.val1 = get_rgb_from_batt_level(batt_level, usb_present)};
+        sensor_attr_set(trackball, 0, SENSOR_ATTR_PRIV_START + 1, &val);
+    }
+#endif
 #if IS_ENABLED(CONFIG_PIM447_DEFAULT_EXT_POWER_OFF)
-    ext_power = device_get_binding("EXT_POWER");
+    const struct device *ext_power = device_get_binding("EXT_POWER");
     if (ext_power != NULL) {
         int rc = ext_power_disable(ext_power);
         if (rc != 0) {
